@@ -1,30 +1,58 @@
 ---
 title: "M3 Tarea"
 author: "Francisco Javier Ortiz Escuchas"
-date: "4 de noviembre de 2016"
-output: html_document
+date: "9 de noviembre de 2016"
+output: 
+    word_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
 ---
 
-```{r setup, include=FALSE}
+******
+## Introducción con el objetivo del análisis (con este dataset normalmente suele ser predecir el valor de la nota final G3 o clasificar a los alumnos como aprobados o suspendido en base a que esa nota sea mayor o menor que 5, pero se puede elegir otro si así se quiere)
+******
+
+Cargamos las librerias necesarias para el proceso
+```{r,eval=TRUE, echo=FALSE}
+library(rJava)
+library(xlsxjars)
+library(xlsx)
+library(stringr)
+```
+******
+## Carga de los datos y análisis descriptivo
+******
+```{r carga, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+# Cargamos los datos del dataset student-mat
+student_mat <- read.table("C:/Users/Javier Ortiz/Desktop/Master Big Data/Modulo 3/M3-TAREA/Estudio Preeliminar/Datos/student-mat.csv",sep=";",header=TRUE)
+
+student_por <- read.table("C:/Users/Javier Ortiz/Desktop/Master Big Data/Modulo 3/M3-TAREA/Estudio Preeliminar/Datos/student-por.csv",sep=";",header=TRUE)
+
+students <- merge(student_mat,student_por,by=c("school","sex","age","address","famsize","Pstatus","Medu","Fedu","Mjob","Fjob","reason","nursery","internet"))
+
+```
+******
+## Análisis exploratorio apoyado en algún método NO supervisado
+******
+```{r,eval=TRUE, echo=FALSE}
+```
+******
+## Selección de variables, elección, construcción y optimización de al menos dos modelos machine Learning supervisados distintos (por ejemplo, Regresión Lineal y Árboles de Decisión, etc)
+******
+```{r,eval=TRUE, echo=FALSE}
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
+******
+## Evaluación y comparación de dichos modelos realizados
+******
 ```{r cars}
-summary(cars)
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
+## Gráficos
 
 ```{r pressure, echo=FALSE}
-plot(pressure)
 ```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

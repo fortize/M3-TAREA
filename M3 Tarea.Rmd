@@ -17,10 +17,11 @@ output:
 
 Cargamos las librerias necesarias para el proceso
 ```{r,eval=TRUE, echo=FALSE}
-library(rJava)
-library(xlsxjars)
-library(xlsx)
-library(stringr)
+require(rJava)
+require(xlsxjars)
+require(xlsx)
+require(stringr)
+require(ggplot2)
 ```
 ******
 ## Carga de los datos y análisis descriptivo
@@ -38,7 +39,10 @@ students <- merge(student_mat,student_por,by=c("school","sex","age","address","f
 ******
 ## Análisis exploratorio apoyado en algún método NO supervisado
 ******
+summarize(students)
 ```{r,eval=TRUE, echo=FALSE}
+students[c("AGES")] <-- (students$ages-mean(students$ages,na.rm=T)) / sd(students$ages,na.rm=T)
+students[c("FAMSIZE")] <-- (students$famsize-mean(students$famsize,na.rm=T)) / sd(students$famsize,na.rm=T)
 ```
 ******
 ## Selección de variables, elección, construcción y optimización de al menos dos modelos machine Learning supervisados distintos (por ejemplo, Regresión Lineal y Árboles de Decisión, etc)
@@ -53,6 +57,6 @@ students <- merge(student_mat,student_por,by=c("school","sex","age","address","f
 ```
 
 ## Gráficos
-
 ```{r pressure, echo=FALSE}
+qplot(age, famsize, data = students, color = age)
 ```

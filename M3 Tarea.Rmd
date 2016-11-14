@@ -1,0 +1,103 @@
+---
+title: "M3 Tarea"
+author: "Francisco Javier Ortiz Escuchas"
+date: "12 de noviembre de 2016"
+output: 
+    word_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+---
+
+******
+## Introducción con el objetivo del análisis (con este dataset normalmente suele ser predecir el valor de la nota final G3 o clasificar a los alumnos como aprobados o suspendido en base a que esa nota sea mayor o menor que 5, pero se puede elegir otro si así se quiere)
+******
+
+Cargamos las librerias necesarias para el proceso
+
+```{r libraries,eval=TRUE,echo=TRUE}
+library(rJava)
+library(xlsxjars)
+library(xlsx)
+library(stringr)
+library(ggplot2)
+library(knitr)
+library(dplyr)
+library(ROCR)
+library("plotrix")
+```
+******
+## Carga de los datos y análisis descriptivo del dataset
+******
+Cargamos los dos datasets (student_mat y student_par y se unen en un único dataset llamado students)
+
+```{r descriptive, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Cargamos los datos del dataset student-mat
+student_mat <- read.table("Estudio Preeliminar/Datos/student-mat.csv",sep=";",header=TRUE)
+
+student_por <- read.table("Estudio Preeliminar/Datos/student-por.csv",sep=";",header=TRUE)
+
+students <- merge(student_mat,student_por,all=TRUE)
+
+#dim(students)
+#summary(students)
+#names(students)
+```
+
+******
+## Análisis exploratorio apoyado en algún método NO supervisado (Clustering)
+******
+Normalización de atributos
+```{r exploratory,eval=TRUE, echo=FALSE}
+students_mod <- subset(students,select = c(age,Medu,Fedu,traveltime,studytime,failures,famrel,freetime,goout))
+
+kmeans(students_mod,centers=9)$tot.withinss
+wss <- (nrow(students_mod)-1)*sum(apply(students_mod,2,var))
+  for (i in 2:15) wss[i] <- sum(kmeans(students_mod,
+                                       centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Numero de Clusters",
+     ylab="Sumas de cuadrados dentro de los grupos",
+     main="Num de clusters óptimo según Elbow",
+     pch=20, cex=2)
+#kmeans.clust <- kmeans(students_mod, 12)
+#kmeans.clust
+kmeans.result <- kmeans(students_mod, centers=5)
+centros <- kmeans.result$centers[kmeans.result$cluster,]
+distancias <- sqrt(rowSums((students_mod - centros)^2))
+outliers <- order(distancias, decreasing=T)[1:5]
+students_mod[outliers,]
+
+plot(students_mod[,c("age","Medu","Fedu","traveltime","studytime","failures","famrel","freetime","goout")], main="Detección de outliers", pch="o",
+col=kmeans.result$cluster, cex=0.3)
+points(kmeans.result$centers[,c("age","Medu","Fedu","traveltime","studytime","failures","famrel","freetime","goout")], col=1:5, pch=8, cex=1.5)
+points(students_mod[outliers,c("age","Medu","Fedu","traveltime","studytime","failures","famrel","freetime","goout")], col=4, pch="+", cex=1.5)
+points(matrix(colMeans(students_mod),nrow=1,ncol=2),cex=3,col=12,pch=19)
+
+```
+******
+## Selección de variables, elección, construcción y optimización de al menos dos modelos machine Learning supervisados distintos (Regresión Lineal y Árboles de Decisión)
+******
+```{r selection,eval=TRUE, echo=FALSE}
+str(students)
+sapply(students,function(x) sum(is.na(x)))
+sapply(students,function(x) length(unique(x)))
+set.seed(12345)
+train.sample <- sample(1:889, size=(800), replace=F)
+train.students <- students[train.sample,]
+test.students <- students[-train.sample,]
+dim(train.students)
+logistic.reg.model <- glm(Survived ~.,family=binomial,data=train.students)
+summary(logistic.reg.model)
+```
+
+******
+## Evaluación y comparación de dichos modelos realizados
+******
+```{r comparation}
+```
+
+## Gráficos
+```{r graphics, echo=FALSE}
+qplot(age, famsize, data = students, color = age)
+```

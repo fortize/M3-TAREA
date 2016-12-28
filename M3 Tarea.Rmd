@@ -1,12 +1,13 @@
 ---
 title: "M3 Tarea"
 author: "Francisco Javier Ortiz Escuchas"
-date: "12 de noviembre de 2016"
-output: 
-    word_document:
-    highlight: default
-    number_sections: yes
-    theme: cosmo
+date: "29 de diciembre de 2016"
+output:
+  html_document: default
+  highlight: default
+  number_sections: yes
+  theme: cosmo
+  word_document: null
 ---
 
 ******
@@ -24,7 +25,8 @@ library(ggplot2)
 library(knitr)
 library(dplyr)
 library(ROCR)
-library("plotrix")
+library(plotrix)
+library(caret)
 ```
 ******
 ## Carga de los datos y análisis descriptivo del dataset
@@ -39,7 +41,6 @@ student_mat <- read.table("Estudio Preeliminar/Datos/student-mat.csv",sep=";",he
 student_por <- read.table("Estudio Preeliminar/Datos/student-por.csv",sep=";",header=TRUE)
 
 students <- merge(student_mat,student_por,all=TRUE)
-
 #dim(students)
 #summary(students)
 #names(students)
@@ -50,7 +51,7 @@ students <- merge(student_mat,student_por,all=TRUE)
 ******
 Normalización de atributos
 ```{r exploratory,eval=TRUE, echo=FALSE}
-students_mod <- subset(students,select = c(age,Medu,Fedu,traveltime,studytime,failures,famrel,freetime,goout))
+students_mod <- subset(students,select = c(age,Medu,Fedu,traveltime,studytime,failures,famrel,freetime,goout,G1,G2,G3))
 
 kmeans(students_mod,centers=9)$tot.withinss
 wss <- (nrow(students_mod)-1)*sum(apply(students_mod,2,var))
@@ -73,31 +74,60 @@ col=kmeans.result$cluster, cex=0.3)
 points(kmeans.result$centers[,c("age","Medu","Fedu","traveltime","studytime","failures","famrel","freetime","goout")], col=1:5, pch=8, cex=1.5)
 points(students_mod[outliers,c("age","Medu","Fedu","traveltime","studytime","failures","famrel","freetime","goout")], col=4, pch="+", cex=1.5)
 points(matrix(colMeans(students_mod),nrow=1,ncol=2),cex=3,col=12,pch=19)
-
 ```
 ******
 ## Selección de variables, elección, construcción y optimización de al menos dos modelos machine Learning supervisados distintos (Regresión Lineal y Árboles de Decisión)
 ******
 ```{r selection,eval=TRUE, echo=FALSE}
-str(students)
-sapply(students,function(x) sum(is.na(x)))
-sapply(students,function(x) length(unique(x)))
-set.seed(12345)
-train.sample <- sample(1:889, size=(800), replace=F)
-train.students <- students[train.sample,]
-test.students <- students[-train.sample,]
-dim(train.students)
-logistic.reg.model <- glm(Survived ~.,family=binomial,data=train.students)
-summary(logistic.reg.model)
+sapply(students_mod,function(x) sum(is.na(x)))
+sapply(students_mod,function(x) length(unique(x)))
+
+train.sample <- createDataPartition(students_mod$G3, p=0.8, list = F)
+train.students_mod <- students_mod[train.sample,]
+test.students_mod <- students_mod[ -train.sample,]
+
+zero.var.train.students_mod <- nearZeroVar(train.students_mod[, -dim(train.students_mod)[2]], saveMetrics = F)
+colnames(train.students_mod)[zero.var.train.students_mod]
+
+cor.train.students_mod.matrix <- cor( train.students_mod[, -dim(train.students_mod)[2]] )
+
+cor.train.students_mod.index <- findCorrelation(cor.train.students_mod.matrix, 0.80)
+cor.train.students_mod.index
+
+cor.train.students_mod <- train.students_mod[, -cor.train.students_mod.index]
+dim(cor.train.students_mod)
+
+cor.test.students_mod <- test.students_mod[, -cor.train.students_mod.index]
+dim(cor.test.students_mod)
+
+xTrans.students_mod <- preProcess(cor.train.students_mod[, -dim(cor.train.students_mod)[2]])
+train.students_mod.prep <- predict( xTrans.students_mod, cor.train.students_mod[,-dim(cor.train.students_mod)[2]])
+train.students_mod$G3 <- cor.train.students_mod$G3
+
+test.students_mod.prep <- predict( xTrans.students_mod, cor.test.students_mod[,-dim(cor.test.students_mod)[2]])
+test.students_mod$G3 <- cor.test.students_mod$G3
+
+knn.control <- trainControl(method="repeatedcv", repeats = 5)
+
+knn.students_mod.model <- train(x=train.students_mod.prep[,-dim(train.students_mod.prep)[2]], y=train.students_mod.prep$G2, method="knn", tuneLength = 10, trControl = knn.control)
+
+knn.students_mod.model
+
+plot1 <- plot(knn.students_mod.model, metric="Accuracy")
 ```
 
 ******
 ## Evaluación y comparación de dichos modelos realizados
 ******
 ```{r comparation}
+models <- list(knn.students_mod.model, svm.students_mod.model)
+compar.models <- resamples(models)
+summary(compar.models)
+
 ```
 
 ## Gráficos
 ```{r graphics, echo=FALSE}
+dotplot(compar.models)
 qplot(age, famsize, data = students, color = age)
 ```

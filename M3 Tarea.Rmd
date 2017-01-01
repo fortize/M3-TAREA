@@ -3,11 +3,11 @@ title: "M3 Tarea"
 author: "Francisco Javier Ortiz Escuchas"
 date: "02 de Enero de 2017"
 output:
+  word_document: null
   html_document: default
-  highlight: default
   number_sections: yes
   theme: cosmo
-  word_document: null
+  highlight: default
 ---
 
 ******
@@ -31,19 +31,21 @@ library(mlbench)
 ******
 ## Carga de los datos y análisis descriptivo del dataset
 ******
-Cargamos los dos datasets (student_mat y student_par y se unen en un único dataset llamado students)
+Cargamos los dos datasets (student_mat y student_par y se realizó un merge para obtener un único dataset llamado students)
 
 ```{r descriptive, echo=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 # Cargamos los datos del dataset student-mat
 student_mat <- read.table("Estudio Preeliminar/Datos/student-mat.csv",sep=";",header=TRUE)
 
 student_por <- read.table("Estudio Preeliminar/Datos/student-por.csv",sep=";",header=TRUE)
 
 students <- merge(student_mat,student_por,all=TRUE)
+
+#Comprobamos que la suma de filas y el número de variables es correcto
 dim(students)
+
+#Mostramos un resumen del dataset resultante
 summary(students)
-#names(students)
 ```
 
 ******
@@ -51,22 +53,28 @@ summary(students)
 ******
 Normalización de atributos
 ```{r exploratory,eval=TRUE, echo=FALSE}
+#Elijo solo varibles númericas
 students_mod <- subset(students,select = c(age,Medu,Fedu,traveltime,studytime,failures,famrel,freetime,goout,G1,G2,G3))
 
+#Realizamos 15 iteraciones empleando y empleando el indicador withniss obtendremos la suma de los cuadrados de las distancias entre los centros determinados por el algoritmo kmeans y los puntos que están dentro de cada cluster.
 kmeans(students_mod,centers=9)$tot.withinss
 wss <- (nrow(students_mod)-1)*sum(apply(students_mod,2,var))
   for (i in 2:15) wss[i] <- sum(kmeans(students_mod,
                                        centers=i)$withinss)
+
+#Dibujamos el gráfico para ver cual es el número de clústers más correctos para elegir
 plot(1:15, wss, type="b", xlab="Numero de Clusters",
      ylab="Sumas de cuadrados dentro de los grupos",
-     main="Num de clusters óptimo según Elbow",
+     main="Num de clusters óptimos",
      pch=20, cex=2)
+
 kmeans.result <- kmeans(students_mod, centers=5)
 centros <- kmeans.result$centers[kmeans.result$cluster,]
 distancias <- sqrt(rowSums((students_mod - centros)^2))
 outliers <- order(distancias, decreasing=T)[1:5]
 students_mod[outliers,]
 
+#Detección de outliers
 plot(students_mod[,c("age","Medu","Fedu","traveltime","studytime","failures","famrel","freetime","goout")], main="Detección de outliers", pch="o",
 col=kmeans.result$cluster, cex=0.3)
 points(kmeans.result$centers[,c("age","Medu","Fedu","traveltime","studytime","failures","famrel","freetime","goout")], col=1:5, pch=8, cex=1.5)
@@ -77,21 +85,22 @@ points(matrix(colMeans(students_mod),nrow=1,ncol=2),cex=3,col=12,pch=19)
 ******
 ## Selección de variables, elección, construcción y optimización de al menos dos modelos machine Learning supervisados distintos (Regresión Lineal)
 ******
-Regresión Lineal
-```{r reg_lineal,eval=TRUE, echo=FALSE}
+```{r reg_lineal, echo=FALSE}
 sapply(students_mod,function(x) sum(is.na(x)))
 sapply(students_mod,function(x) length(unique(x)))
 students_mod$Class <- factor(ifelse(students_mod$G3<10, "SUS", "APR"))
 
+#Creamos la partición tanto para entrenamiento y para test 
 train.sample <- createDataPartition(students_mod$Class, p=0.8, list = F)
 train.students_mod <- students_mod[train.sample,]
 test.students_mod <- students_mod[ -train.sample,]
 
+#Buscamos las variables que no aportan al clasificador.
 zero.var.train.students_mod <- nearZeroVar(train.students_mod[, -dim(train.students_mod)[2]], saveMetrics = F)
 colnames(train.students_mod)[zero.var.train.students_mod]
 
+#Variables que tienen correlación.
 cor.train.students_mod.matrix <- cor( train.students_mod[, -dim(train.students_mod)[2]] )
-
 cor.train.students_mod.index <- findCorrelation(cor.train.students_mod.matrix, 0.80)
 
 cor.train.students_mod <- train.students_mod[, -cor.train.students_mod.index]
@@ -110,11 +119,15 @@ knn.students_mod.model <- train(x=train.students_mod.prep[,-dim(train.students_m
 
 knn.students_mod.model
 
+knnplot <- plot(knn.students_mod.model, metric="Accuracy")
+print(knnplot)
+
 knn.students_mod.test <- predict(knn.students_mod.model, newdata = test.students_mod.prep[,-dim(train.students_mod.prep)[2]])
 
 confusionMatrix(knn.students_mod.test,test.students_mod.prep$Class)
 
 pr <- prediction(ifelse(knn.students_mod.test == 'APR',1,0), ifelse(test.students_mod.prep$Class == 'APR',1,0))
+
 prf <- performance(pr, measure = "tpr", x.measure = "fpr")
 plot(prf)
 ```
@@ -122,11 +135,15 @@ plot(prf)
 ******
 ## Selección de variables, elección, construcción y optimización de al menos dos modelos machine Learning supervisados distintos (SVM)
 ******
-SVM
-```{r SVM,eval=TRUE, echo=FALSE}
+```{r SVM, echo=FALSE}
 svm.control <- trainControl(method="repeatedcv", repeats = 5)
 
 svm.students_mod.model <- train(x=train.students_mod.prep[,-dim(train.students_mod.prep)[2]], y=train.students_mod.prep$Class, method="svmRadial", tuneLength = 10, trControl = svm.control)
+
+svm.students_mod.model
+
+svmplot <- plot(svm.students_mod.model, metric="Accuracy")
+print(svmplot)
 
 svm.students_mod.test <- predict(svm.students_mod.model, newdata = test.students_mod.prep[,-dim(train.students_mod.prep)[2]])
 
@@ -141,7 +158,7 @@ plot(prf)
 ******
 ## Evaluación y comparación de dichos modelos realizados
 ******
-```{r comparation}
+```{r comparation, echo=FALSE}
 models <- list(knn.students_mod.model, svm.students_mod.model)
 compar.models <- resamples(models)
 summary(compar.models)
@@ -150,11 +167,5 @@ summary(compar.models)
 ## Gráficos
 ******
 ```{r graphics, echo=FALSE}
-knnplot <- plot(knn.students_mod.model, metric="Accuracy")
-print(knnplot)
-
-svmplot <- plot(svm.students_mod.model, metric="Accuracy")
-print(svmplot)
-
 dotplot(compar.models)
 ```

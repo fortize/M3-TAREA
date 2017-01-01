@@ -1,7 +1,7 @@
 ---
 title: "M3 Tarea"
 author: "Francisco Javier Ortiz Escuchas"
-date: "01 de Enero de 2017"
+date: "02 de Enero de 2017"
 output:
   html_document: default
   highlight: default
@@ -13,9 +13,7 @@ output:
 ******
 ## Introducción con el objetivo del análisis (con este dataset normalmente suele ser predecir el valor de la nota final G3 o clasificar a los alumnos como aprobados o suspendido en base a que esa nota sea mayor o menor que 5, pero se puede elegir otro si así se quiere)
 ******
-
 Cargamos las librerias necesarias para el proceso
-
 ```{r libraries, include=FALSE}
 library(rJava)
 library(xlsxjars)
@@ -29,6 +27,7 @@ library(plotrix)
 library(caret)
 library(mlbench)
 ```
+
 ******
 ## Carga de los datos y análisis descriptivo del dataset
 ******
@@ -62,8 +61,6 @@ plot(1:15, wss, type="b", xlab="Numero de Clusters",
      ylab="Sumas de cuadrados dentro de los grupos",
      main="Num de clusters óptimo según Elbow",
      pch=20, cex=2)
-#kmeans.clust <- kmeans(students_mod, 12)
-#kmeans.clust
 kmeans.result <- kmeans(students_mod, centers=5)
 centros <- kmeans.result$centers[kmeans.result$cluster,]
 distancias <- sqrt(rowSums((students_mod - centros)^2))
@@ -76,10 +73,12 @@ points(kmeans.result$centers[,c("age","Medu","Fedu","traveltime","studytime","fa
 points(students_mod[outliers,c("age","Medu","Fedu","traveltime","studytime","failures","famrel","freetime","goout")], col=4, pch="+", cex=1.5)
 points(matrix(colMeans(students_mod),nrow=1,ncol=2),cex=3,col=12,pch=19)
 ```
+
 ******
 ## Selección de variables, elección, construcción y optimización de al menos dos modelos machine Learning supervisados distintos (Regresión Lineal)
 ******
-```{r selection,eval=TRUE, echo=FALSE}
+Regresión Lineal
+```{r reg_lineal,eval=TRUE, echo=FALSE}
 sapply(students_mod,function(x) sum(is.na(x)))
 sapply(students_mod,function(x) length(unique(x)))
 students_mod$Class <- factor(ifelse(students_mod$G3<10, "SUS", "APR"))
@@ -111,13 +110,20 @@ knn.students_mod.model <- train(x=train.students_mod.prep[,-dim(train.students_m
 
 knn.students_mod.model
 
-#confusionMatrix(knn.students_mod.test,test.students_mod.prep$Class)
-#pr <- prediction(ifelse(knn.students_mod.test == "APR",1,0), ifelse(test.students_mod.prep$Class == "APR",1,0))
+knn.students_mod.test <- predict(knn.students_mod.model, newdata = test.students_mod.prep[,-dim(train.students_mod.prep)[2]])
+
+confusionMatrix(knn.students_mod.test,test.students_mod.prep$Class)
+
+pr <- prediction(ifelse(knn.students_mod.test == 'APR',1,0), ifelse(test.students_mod.prep$Class == 'APR',1,0))
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
 ```
+
 ******
 ## Selección de variables, elección, construcción y optimización de al menos dos modelos machine Learning supervisados distintos (SVM)
 ******
-```{r selection,eval=TRUE, echo=FALSE}
+SVM
+```{r SVM,eval=TRUE, echo=FALSE}
 svm.control <- trainControl(method="repeatedcv", repeats = 5)
 
 svm.students_mod.model <- train(x=train.students_mod.prep[,-dim(train.students_mod.prep)[2]], y=train.students_mod.prep$Class, method="svmRadial", tuneLength = 10, trControl = svm.control)
@@ -130,8 +136,8 @@ pr <- prediction(ifelse(svm.students_mod.test == 'APR' ,1,0), ifelse(test.studen
 
 prf <- performance(pr, measure = "tpr", x.measure = "fpr")
 plot(prf)
-
 ```
+
 ******
 ## Evaluación y comparación de dichos modelos realizados
 ******
@@ -139,10 +145,10 @@ plot(prf)
 models <- list(knn.students_mod.model, svm.students_mod.model)
 compar.models <- resamples(models)
 summary(compar.models)
-
 ```
-
+******
 ## Gráficos
+******
 ```{r graphics, echo=FALSE}
 knnplot <- plot(knn.students_mod.model, metric="Accuracy")
 print(knnplot)
@@ -150,5 +156,5 @@ print(knnplot)
 svmplot <- plot(svm.students_mod.model, metric="Accuracy")
 print(svmplot)
 
-dotplot(compar_models)
+dotplot(compar.models)
 ```

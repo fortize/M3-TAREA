@@ -1,7 +1,7 @@
 ---
 title: "M3 Tarea"
 author: "Francisco Javier Ortiz Escuchas"
-date: "29 de diciembre de 2016"
+date: "01 de Enero de 2017"
 output:
   html_document: default
   highlight: default
@@ -16,7 +16,7 @@ output:
 
 Cargamos las librerias necesarias para el proceso
 
-```{r libraries,eval=TRUE,echo=TRUE}
+```{r libraries, include=FALSE}
 library(rJava)
 library(xlsxjars)
 library(xlsx)
@@ -27,6 +27,7 @@ library(dplyr)
 library(ROCR)
 library(plotrix)
 library(caret)
+library(mlbench)
 ```
 ******
 ## Carga de los datos y análisis descriptivo del dataset
@@ -41,8 +42,8 @@ student_mat <- read.table("Estudio Preeliminar/Datos/student-mat.csv",sep=";",he
 student_por <- read.table("Estudio Preeliminar/Datos/student-por.csv",sep=";",header=TRUE)
 
 students <- merge(student_mat,student_por,all=TRUE)
-#dim(students)
-#summary(students)
+dim(students)
+summary(students)
 #names(students)
 ```
 
@@ -76,13 +77,14 @@ points(students_mod[outliers,c("age","Medu","Fedu","traveltime","studytime","fai
 points(matrix(colMeans(students_mod),nrow=1,ncol=2),cex=3,col=12,pch=19)
 ```
 ******
-## Selección de variables, elección, construcción y optimización de al menos dos modelos machine Learning supervisados distintos (Regresión Lineal y Árboles de Decisión)
+## Selección de variables, elección, construcción y optimización de al menos dos modelos machine Learning supervisados distintos (Regresión Lineal)
 ******
 ```{r selection,eval=TRUE, echo=FALSE}
 sapply(students_mod,function(x) sum(is.na(x)))
 sapply(students_mod,function(x) length(unique(x)))
+students_mod$Class <- factor(ifelse(students_mod$G3<10, "SUS", "APR"))
 
-train.sample <- createDataPartition(students_mod$G3, p=0.8, list = F)
+train.sample <- createDataPartition(students_mod$Class, p=0.8, list = F)
 train.students_mod <- students_mod[train.sample,]
 test.students_mod <- students_mod[ -train.sample,]
 
@@ -92,30 +94,44 @@ colnames(train.students_mod)[zero.var.train.students_mod]
 cor.train.students_mod.matrix <- cor( train.students_mod[, -dim(train.students_mod)[2]] )
 
 cor.train.students_mod.index <- findCorrelation(cor.train.students_mod.matrix, 0.80)
-cor.train.students_mod.index
 
 cor.train.students_mod <- train.students_mod[, -cor.train.students_mod.index]
-dim(cor.train.students_mod)
-
 cor.test.students_mod <- test.students_mod[, -cor.train.students_mod.index]
-dim(cor.test.students_mod)
 
 xTrans.students_mod <- preProcess(cor.train.students_mod[, -dim(cor.train.students_mod)[2]])
 train.students_mod.prep <- predict( xTrans.students_mod, cor.train.students_mod[,-dim(cor.train.students_mod)[2]])
-train.students_mod$G3 <- cor.train.students_mod$G3
+train.students_mod.prep$Class <- cor.train.students_mod$Class
 
 test.students_mod.prep <- predict( xTrans.students_mod, cor.test.students_mod[,-dim(cor.test.students_mod)[2]])
-test.students_mod$G3 <- cor.test.students_mod$G3
+test.students_mod.prep$Class <- cor.test.students_mod$Class
 
 knn.control <- trainControl(method="repeatedcv", repeats = 5)
 
-knn.students_mod.model <- train(x=train.students_mod.prep[,-dim(train.students_mod.prep)[2]], y=train.students_mod.prep$G2, method="knn", tuneLength = 10, trControl = knn.control)
+knn.students_mod.model <- train(x=train.students_mod.prep[,-dim(train.students_mod.prep)[2]], y=train.students_mod.prep$Class, method="knn", tuneLength = 10, trControl = knn.control)
 
 knn.students_mod.model
 
-plot1 <- plot(knn.students_mod.model, metric="Accuracy")
+#confusionMatrix(knn.students_mod.test,test.students_mod.prep$Class)
+#pr <- prediction(ifelse(knn.students_mod.test == "APR",1,0), ifelse(test.students_mod.prep$Class == "APR",1,0))
 ```
+******
+## Selección de variables, elección, construcción y optimización de al menos dos modelos machine Learning supervisados distintos (SVM)
+******
+```{r selection,eval=TRUE, echo=FALSE}
+svm.control <- trainControl(method="repeatedcv", repeats = 5)
 
+svm.students_mod.model <- train(x=train.students_mod.prep[,-dim(train.students_mod.prep)[2]], y=train.students_mod.prep$Class, method="svmRadial", tuneLength = 10, trControl = svm.control)
+
+svm.students_mod.test <- predict(svm.students_mod.model, newdata = test.students_mod.prep[,-dim(train.students_mod.prep)[2]])
+
+confusionMatrix(svm.students_mod.test,test.students_mod.prep$Class)
+
+pr <- prediction(ifelse(svm.students_mod.test == 'APR' ,1,0), ifelse(test.students_mod.prep$Class == 'APR',1,0))
+
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+
+```
 ******
 ## Evaluación y comparación de dichos modelos realizados
 ******
@@ -128,6 +144,11 @@ summary(compar.models)
 
 ## Gráficos
 ```{r graphics, echo=FALSE}
-dotplot(compar.models)
-qplot(age, famsize, data = students, color = age)
+knnplot <- plot(knn.students_mod.model, metric="Accuracy")
+print(knnplot)
+
+svmplot <- plot(svm.students_mod.model, metric="Accuracy")
+print(svmplot)
+
+dotplot(compar_models)
 ```
